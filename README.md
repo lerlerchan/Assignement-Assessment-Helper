@@ -42,18 +42,19 @@ cd assignment-assistant
 ---
 
 ### 2. Create a Virtual Environment (Optional but Recommended)
-```bash
+'''bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+'''bash
 
 #### 3. Install Dependencies
-```bash
+'''bash
 pip install -r requirements.txt
-
+'''bash
 ### 4. Run the App
-```bash
+'''bash
 python app.py
-
+'''bash
 ## Then open your browser and go to:
 👉 http://localhost:5000
 
