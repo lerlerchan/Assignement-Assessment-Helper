@@ -38,7 +38,7 @@ assignment-assistant/
 ```bash
 git clone https://github.com/your-username/assignment-assistant.git
 cd assignment-assistant
-
+```bash
 ---
 
 ### 2. Create a Virtual Environment (Optional but Recommended)
