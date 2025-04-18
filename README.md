@@ -39,30 +39,34 @@ assignment-assistant/
 git clone https://github.com/your-username/assignment-assistant.git
 cd assignment-assistant
 
-2. Create a Virtual Environment (Optional but Recommended)
+---
 
+### 2. Create a Virtual Environment (Optional but Recommended)
+```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-3. Install Dependencies
-
+#### 3. Install Dependencies
+```bash
 pip install -r requirements.txt
 
-4. Run the App
-
+### 4. Run the App
+```bash
 python app.py
 
-Then open your browser and go to:
+## Then open your browser and go to:
 👉 http://localhost:5000
 
-📦 Dependencies
+## 📦 Dependencies
 Python 3.8+
 Flask 2.x
-🔒 Security Notes
+
+## 🔒 Security Notes
 Uploaded files are stored locally in uploads/ and are ignored by Git.
 Make sure to sanitize and validate all user inputs in production environments.
-📄 License
+
+## 📄 License
 MIT License – feel free to use and modify.
 
-🙋‍♂️ Author
+## 🙋‍♂️ Author
 Built by Ler-Kuan, Chan – [lkchan@sc.edu.my]
