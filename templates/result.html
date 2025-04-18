@@ -1,0 +1,26 @@
+<!-- templates/result.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Extraction Result</title>
+</head>
+<body>
+    <h1>📄 Extracted Text</h1>
+    <pre>{{ text }}</pre>
+
+    <h2>📊 Extracted Tables</h2>
+    {% for table in tables %}
+        <table border="1" cellpadding="5">
+            {% for row in table %}
+                <tr>
+                    {% for cell in row %}
+                        <td>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </table>
+        <br>
+    {% endfor %}
+</body>
+</html>
