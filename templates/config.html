@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings - Teacher Grading Assistant{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Settings</h1>
+    <p class="subtitle">Configure AI providers and application preferences</p>
+</div>
+
+<form id="config-form" action="{{ url_for('save_config') }}" method="POST">
+    <div class="card">
+        <div class="card-header">
+            <h2>AI Provider Configuration</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label for="default_provider" class="form-label">Default AI Provider</label>
+                <select name="ai_provider" id="default_provider" class="form-select">
+                    <option value="openai" {% if config.ai_provider == 'openai' %}selected{% endif %}>OpenAI (GPT-4)</option>
+                    <option value="anthropic" {% if config.ai_provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+                    <option value="gemini" {% if config.ai_provider == 'gemini' %}selected{% endif %}>Google Gemini</option>
+                    <option value="ollama" {% if config.ai_provider == 'ollama' %}selected{% endif %}>Ollama (Local)</option>
+                    <option value="lmstudio" {% if config.ai_provider == 'lmstudio' %}selected{% endif %}>LM Studio (Local)</option>
+                    <option value="generic" {% if config.ai_provider == 'generic' %}selected{% endif %}>Generic OpenAI-compatible</option>
+                </select>
+            </div>
+
+            <!-- OpenAI -->
+            <div class="provider-section">
+                <h3>OpenAI</h3>
+                <div class="form-group">
+                    <label for="openai_api_key" class="form-label">API Key</label>
+                    <input type="password" name="openai_api_key" id="openai_api_key" class="form-input"
+                           value="{{ config.openai_api_key }}" placeholder="sk-...">
+                    <button type="button" class="btn btn-small btn-secondary mt-2" onclick="testProvider('openai')">Test Connection</button>
+                    <span id="openai-status" class="status-indicator"></span>
+                </div>
+            </div>
+
+            <!-- Anthropic -->
+            <div class="provider-section">
+                <h3>Anthropic (Claude)</h3>
+                <div class="form-group">
+                    <label for="anthropic_api_key" class="form-label">API Key</label>
+                    <input type="password" name="anthropic_api_key" id="anthropic_api_key" class="form-input"
+                           value="{{ config.anthropic_api_key }}" placeholder="sk-ant-...">
+                    <button type="button" class="btn btn-small btn-secondary mt-2" onclick="testProvider('anthropic')">Test Connection</button>
+                    <span id="anthropic-status" class="status-indicator"></span>
+                </div>
+            </div>
+
+            <!-- Gemini -->
+            <div class="provider-section">
+                <h3>Google Gemini</h3>
+                <div class="form-group">
+                    <label for="gemini_api_key" class="form-label">API Key</label>
+                    <input type="password" name="gemini_api_key" id="gemini_api_key" class="form-input"
+                           value="{{ config.gemini_api_key }}" placeholder="AIza...">
+                    <button type="button" class="btn btn-small btn-secondary mt-2" onclick="testProvider('gemini')">Test Connection</button>
+                    <span id="gemini-status" class="status-indicator"></span>
+                </div>
+            </div>
+
+            <!-- Ollama -->
+            <div class="provider-section">
+                <h3>Ollama (Local)</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ollama_url" class="form-label">Server URL</label>
+                        <input type="text" name="ollama_url" id="ollama_url" class="form-input"
+                               value="{{ config.ollama_url or 'http://localhost:11434' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="ollama_model" class="form-label">Model</label>
+                        <input type="text" name="ollama_model" id="ollama_model" class="form-input"
+                               value="{{ config.ollama_model or 'llama2' }}" placeholder="llama2, mistral, etc.">
+                    </div>
+                </div>
+                <button type="button" class="btn btn-small btn-secondary" onclick="testProvider('ollama')">Test Connection</button>
+                <span id="ollama-status" class="status-indicator"></span>
+            </div>
+
+            <!-- LM Studio -->
+            <div class="provider-section">
+                <h3>LM Studio (Local)</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="lmstudio_url" class="form-label">Server URL</label>
+                        <input type="text" name="lmstudio_url" id="lmstudio_url" class="form-input"
+                               value="{{ config.lmstudio_url or 'http://localhost:1234/v1' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="lmstudio_model" class="form-label">Model</label>
+                        <input type="text" name="lmstudio_model" id="lmstudio_model" class="form-input"
+                               value="{{ config.lmstudio_model or 'local-model' }}">
+                    </div>
+                </div>
+                <button type="button" class="btn btn-small btn-secondary" onclick="testProvider('lmstudio')">Test Connection</button>
+                <span id="lmstudio-status" class="status-indicator"></span>
+            </div>
+
+            <!-- Generic -->
+            <div class="provider-section">
+                <h3>Generic OpenAI-compatible</h3>
+                <div class="form-group">
+                    <label for="generic_url" class="form-label">API URL</label>
+                    <input type="text" name="generic_url" id="generic_url" class="form-input"
+                           value="{{ config.generic_url }}" placeholder="https://api.example.com/v1">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="generic_api_key" class="form-label">API Key (optional)</label>
+                        <input type="password" name="generic_api_key" id="generic_api_key" class="form-input"
+                               value="{{ config.generic_api_key }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="generic_model" class="form-label">Model Name</label>
+                        <input type="text" name="generic_model" id="generic_model" class="form-input"
+                               value="{{ config.generic_model }}">
+                    </div>
+                </div>
+                <button type="button" class="btn btn-small btn-secondary" onclick="testProvider('generic')">Test Connection</button>
+                <span id="generic-status" class="status-indicator"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h2>Grading Preferences</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="marking_mode" class="form-label">Default Marking Mode</label>
+                    <select name="marking_mode" id="marking_mode" class="form-select">
+                        <option value="auto" {% if config.marking_mode == 'auto' %}selected{% endif %}>Auto-calculate marks</option>
+                        <option value="suggestions" {% if config.marking_mode == 'suggestions' %}selected{% endif %}>Suggestions only</option>
+                    </select>
+                    <small class="form-hint">Auto-calculate provides final marks; Suggestions gives recommendations for you to finalize</small>
+                </div>
+                <div class="form-group">
+                    <label for="feedback_style" class="form-label">Default Feedback Style</label>
+                    <select name="feedback_style" id="feedback_style" class="form-select">
+                        <option value="detailed" {% if config.feedback_style == 'detailed' %}selected{% endif %}>Detailed feedback</option>
+                        <option value="brief" {% if config.feedback_style == 'brief' %}selected{% endif %}>Brief feedback</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="default_total_marks" class="form-label">Default Total Marks</label>
+                <input type="number" name="default_total_marks" id="default_total_marks" class="form-input"
+                       value="{{ config.default_total_marks or 100 }}" min="1" max="1000">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-actions mt-4">
+        <button type="submit" class="btn btn-primary">Save Settings</button>
+        <button type="button" class="btn btn-secondary" onclick="resetConfig()">Reset to Defaults</button>
+    </div>
+</form>
+
+<script>
+async function testProvider(provider) {
+    const statusEl = document.getElementById(provider + '-status');
+    statusEl.textContent = 'Testing...';
+    statusEl.className = 'status-indicator testing';
+
+    try {
+        const response = await fetch('/api/test-provider', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({provider: provider})
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            statusEl.textContent = 'Connected';
+            statusEl.className = 'status-indicator success';
+        } else {
+            statusEl.textContent = result.message || 'Failed';
+            statusEl.className = 'status-indicator error';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Error';
+        statusEl.className = 'status-indicator error';
+    }
+}
+
+function resetConfig() {
+    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+        window.location.href = '/config/reset';
+    }
+}
+</script>
+{% endblock %}

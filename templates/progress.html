@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Grading Progress - Teacher Grading Assistant{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Grading in Progress</h1>
+    <p class="subtitle">Processing student assignments...</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="progress-text">
+                <span id="progress-count">0 / {{ total_students }}</span>
+                <span id="progress-percent">0%</span>
+            </div>
+        </div>
+
+        <div class="progress-status">
+            <div id="current-student" class="current-student">
+                Initializing...
+            </div>
+        </div>
+
+        <div class="progress-log" id="progress-log">
+            <!-- Log entries will be added here -->
+        </div>
+    </div>
+</div>
+
+<div class="form-actions mt-4">
+    <button type="button" id="cancel-btn" class="btn btn-secondary" onclick="cancelGrading()">Cancel</button>
+    <a href="{{ url_for('review', session_id=session_id) }}" id="review-btn" class="btn btn-primary hidden">Review Results</a>
+</div>
+
+<script>
+const sessionId = '{{ session_id }}';
+const totalStudents = {{ total_students }};
+let pollInterval;
+
+function updateProgress() {
+    fetch('/api/progress/' + sessionId)
+        .then(response => response.json())
+        .then(data => {
+            const completed = data.completed;
+            const percent = Math.round((completed / totalStudents) * 100);
+
+            document.getElementById('progress-fill').style.width = percent + '%';
+            document.getElementById('progress-count').textContent = completed + ' / ' + totalStudents;
+            document.getElementById('progress-percent').textContent = percent + '%';
+
+            if (data.current_student) {
+                document.getElementById('current-student').textContent =
+                    'Processing: ' + data.current_student;
+            }
+
+            if (data.status === 'completed') {
+                clearInterval(pollInterval);
+                document.getElementById('current-student').textContent = 'Grading complete!';
+                document.getElementById('cancel-btn').classList.add('hidden');
+                document.getElementById('review-btn').classList.remove('hidden');
+                addLogEntry('Grading completed successfully', 'success');
+            } else if (data.status === 'error') {
+                clearInterval(pollInterval);
+                document.getElementById('current-student').textContent = 'Error: ' + data.error_message;
+                addLogEntry('Error: ' + data.error_message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching progress:', error);
+        });
+}
+
+function addLogEntry(message, type = 'info') {
+    const log = document.getElementById('progress-log');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry log-' + type;
+    entry.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+}
+
+function cancelGrading() {
+    if (confirm('Are you sure you want to cancel grading?')) {
+        fetch('/api/cancel/' + sessionId, {method: 'POST'})
+            .then(() => {
+                window.location.href = '/';
+            });
+    }
+}
+
+// Start polling
+pollInterval = setInterval(updateProgress, 1000);
+updateProgress();
+
+// Start the grading process
+fetch('/api/start-grading/' + sessionId, {method: 'POST'})
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            addLogEntry('Grading started', 'info');
+        } else {
+            addLogEntry('Failed to start: ' + data.message, 'error');
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block title %}Review Grades - Teacher Grading Assistant{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Review Grades</h1>
+    <p class="subtitle">Review and edit grades before exporting</p>
+</div>
+
+<div class="review-summary card">
+    <div class="card-body">
+        <div class="summary-stats">
+            <div class="stat">
+                <span class="stat-value">{{ results|length }}</span>
+                <span class="stat-label">Students</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ "%.1f"|format(avg_percentage) }}%</span>
+                <span class="stat-label">Average</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ "%.1f"|format(max_percentage) }}%</span>
+                <span class="stat-label">Highest</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value">{{ "%.1f"|format(min_percentage) }}%</span>
+                <span class="stat-label">Lowest</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="review-actions mb-4">
+    <button type="button" class="btn btn-secondary" onclick="expandAll()">Expand All</button>
+    <button type="button" class="btn btn-secondary" onclick="collapseAll()">Collapse All</button>
+    <div class="export-buttons">
+        <a href="{{ url_for('export', session_id=session_id, format='excel') }}" class="btn btn-primary">Export to Excel</a>
+        <a href="{{ url_for('export', session_id=session_id, format='csv') }}" class="btn btn-secondary">Export to CSV</a>
+    </div>
+</div>
+
+<div class="results-list" id="results-list">
+    {% for result in results %}
+    <div class="result-card card" data-student-id="{{ result.student_id }}">
+        <div class="result-header" onclick="toggleResult(this)">
+            <div class="result-info">
+                <span class="student-id">{{ result.student_id }}</span>
+                <span class="student-name">{{ result.student_name }}</span>
+            </div>
+            <div class="result-score">
+                <span class="score {{ 'score-high' if result.percentage >= 70 else ('score-mid' if result.percentage >= 50 else 'score-low') }}">
+                    {{ "%.1f"|format(result.total_marks) }} / {{ "%.1f"|format(result.max_total_marks) }}
+                </span>
+                <span class="percentage">{{ "%.1f"|format(result.percentage) }}%</span>
+                <span class="toggle-icon">+</span>
+            </div>
+        </div>
+        <div class="result-details hidden">
+            <div class="grades-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Criterion</th>
+                            <th>Marks</th>
+                            <th>Max</th>
+                            <th>Feedback</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in result.element_grades %}
+                        <tr>
+                            <td>{{ grade.element_name }}</td>
+                            <td>
+                                <input type="number" class="grade-input"
+                                       value="{{ grade.marks_awarded }}"
+                                       max="{{ grade.max_marks }}" min="0" step="0.5"
+                                       data-student="{{ result.student_id }}"
+                                       data-element="{{ grade.element_name }}"
+                                       onchange="updateGrade(this)">
+                            </td>
+                            <td>{{ grade.max_marks }}</td>
+                            <td>
+                                <input type="text" class="feedback-input"
+                                       value="{{ grade.feedback }}"
+                                       data-student="{{ result.student_id }}"
+                                       data-element="{{ grade.element_name }}"
+                                       onchange="updateFeedback(this)">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="overall-feedback">
+                <label>Overall Feedback:</label>
+                <textarea class="form-textarea" rows="3"
+                          data-student="{{ result.student_id }}"
+                          onchange="updateOverallFeedback(this)">{{ result.overall_feedback }}</textarea>
+            </div>
+            {% if result.is_suggestion_only %}
+            <div class="suggestion-notice">
+                These marks are suggestions only. Please review and finalize before exporting.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="form-actions mt-4">
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">New Grading Session</a>
+    <a href="{{ url_for('export', session_id=session_id, format='excel') }}" class="btn btn-primary">Export to Excel</a>
+</div>
+
+<script>
+const sessionId = '{{ session_id }}';
+
+function toggleResult(header) {
+    const details = header.nextElementSibling;
+    const icon = header.querySelector('.toggle-icon');
+    details.classList.toggle('hidden');
+    icon.textContent = details.classList.contains('hidden') ? '+' : '-';
+}
+
+function expandAll() {
+    document.querySelectorAll('.result-details').forEach(el => el.classList.remove('hidden'));
+    document.querySelectorAll('.toggle-icon').forEach(el => el.textContent = '-');
+}
+
+function collapseAll() {
+    document.querySelectorAll('.result-details').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.toggle-icon').forEach(el => el.textContent = '+');
+}
+
+function updateGrade(input) {
+    const studentId = input.dataset.student;
+    const element = input.dataset.element;
+    const marks = parseFloat(input.value);
+
+    fetch('/api/update-grade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            session_id: sessionId,
+            student_id: studentId,
+            element_name: element,
+            marks: marks
+        })
+    }).then(response => response.json())
+      .then(data => {
+          if (data.success) {
+              // Update totals display
+              updateStudentTotals(studentId);
+          }
+      });
+}
+
+function updateFeedback(input) {
+    const studentId = input.dataset.student;
+    const element = input.dataset.element;
+    const feedback = input.value;
+
+    fetch('/api/update-grade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            session_id: sessionId,
+            student_id: studentId,
+            element_name: element,
+            feedback: feedback
+        })
+    });
+}
+
+function updateOverallFeedback(textarea) {
+    const studentId = textarea.dataset.student;
+
+    fetch('/api/update-grade', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            session_id: sessionId,
+            student_id: studentId,
+            overall_feedback: textarea.value
+        })
+    });
+}
+
+function updateStudentTotals(studentId) {
+    const card = document.querySelector(`[data-student-id="${studentId}"]`);
+    const inputs = card.querySelectorAll('.grade-input');
+    let total = 0;
+    let maxTotal = 0;
+
+    inputs.forEach(input => {
+        total += parseFloat(input.value) || 0;
+        maxTotal += parseFloat(input.max) || 0;
+    });
+
+    const percentage = maxTotal > 0 ? (total / maxTotal * 100) : 0;
+
+    card.querySelector('.score').textContent = total.toFixed(1) + ' / ' + maxTotal.toFixed(1);
+    card.querySelector('.percentage').textContent = percentage.toFixed(1) + '%';
+
+    // Update color class
+    const scoreEl = card.querySelector('.score');
+    scoreEl.classList.remove('score-high', 'score-mid', 'score-low');
+    if (percentage >= 70) scoreEl.classList.add('score-high');
+    else if (percentage >= 50) scoreEl.classList.add('score-mid');
+    else scoreEl.classList.add('score-low');
+}
+</script>
+{% endblock %}

@@ -1,32 +1,225 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Assignment Grader</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .container { max-width: 600px; margin: auto; }
-        .flash { color: red; margin-bottom: 10px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Upload Assignment and Rubric</h2>
+{% extends 'base.html' %}
 
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <div class="flash">{{ messages[0] }}</div>
-          {% endif %}
-        {% endwith %}
+{% block title %}Upload Assignments - Teacher Grading Assistant{% endblock %}
 
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <label for="assignment">Assignment PDF:</label><br>
-            <input type="file" name="assignment" accept=".pdf" required><br><br>
+{% block content %}
+<div class="page-header">
+    <h1>Grade Assignments</h1>
+    <p class="subtitle">Upload student assignments and rubric to begin grading</p>
+</div>
 
-            <label for="rubric">Rubric PDF:</label><br>
-            <input type="file" name="rubric" accept=".pdf" required><br><br>
+<form id="upload-form" action="{{ url_for('upload') }}" method="POST" enctype="multipart/form-data">
+    <div class="card">
+        <div class="card-header">
+            <h2>Step 1: Upload Assignments</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">Upload Type</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="upload_type" value="individual" checked onchange="toggleUploadType()">
+                        <span>Individual PDFs (one per student)</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="upload_type" value="combined" onchange="toggleUploadType()">
+                        <span>Combined PDF (all students in one file)</span>
+                    </label>
+                </div>
+            </div>
 
-            <input type="submit" value="Upload">
-        </form>
+            <div class="form-group" id="individual-upload">
+                <label for="assignments" class="form-label">Student Assignments</label>
+                <div class="file-upload" id="assignments-drop">
+                    <input type="file" name="assignments" id="assignments" accept=".pdf" multiple>
+                    <div class="file-upload-content">
+                        <span class="file-upload-icon">+</span>
+                        <span class="file-upload-text">Drop PDF files here or click to browse</span>
+                        <span class="file-upload-hint">You can select multiple files</span>
+                    </div>
+                </div>
+                <div id="file-list" class="file-list"></div>
+            </div>
+
+            <div class="form-group hidden" id="combined-upload">
+                <label for="combined_pdf" class="form-label">Combined PDF</label>
+                <div class="file-upload" id="combined-drop">
+                    <input type="file" name="combined_pdf" id="combined_pdf" accept=".pdf">
+                    <div class="file-upload-content">
+                        <span class="file-upload-icon">+</span>
+                        <span class="file-upload-text">Drop combined PDF here or click to browse</span>
+                    </div>
+                </div>
+
+                <div class="form-group mt-3">
+                    <label class="form-label">How to split the PDF?</label>
+                    <div class="radio-group">
+                        <label class="radio-label">
+                            <input type="radio" name="split_method" value="pages" checked onchange="toggleSplitMethod()">
+                            <span>By page count (same pages per student)</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="split_method" value="marker" onchange="toggleSplitMethod()">
+                            <span>By marker pattern (e.g., Student ID)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div id="pages-input" class="form-group">
+                    <label for="pages_per_student" class="form-label">Pages per student</label>
+                    <input type="number" name="pages_per_student" id="pages_per_student" class="form-input" min="1" value="1">
+                </div>
+
+                <div id="marker-input" class="form-group hidden">
+                    <label for="student_id_pattern" class="form-label">Student ID Pattern (Regex)</label>
+                    <input type="text" name="student_id_pattern" id="student_id_pattern" class="form-input"
+                           placeholder="e.g., Student ID[:\s]+([A-Z0-9]+)">
+                    <small class="form-hint">Use parentheses to capture the student ID</small>
+                </div>
+            </div>
+        </div>
     </div>
-</body>
-</html>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h2>Step 2: Provide Rubric</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label class="form-label">Rubric Type</label>
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="rubric_type" value="text" checked onchange="toggleRubricType()">
+                        <span>Enter text rubric</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="rubric_type" value="pdf" onchange="toggleRubricType()">
+                        <span>Upload PDF rubric</span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="rubric-text-input" class="form-group">
+                <label for="rubric_text" class="form-label">Rubric</label>
+                <textarea name="rubric_text" id="rubric_text" class="form-textarea" rows="10"
+                          placeholder="Enter your rubric here...
+
+Example:
+Total Marks: 100
+
+1. Content Quality (40 marks)
+   - Accuracy and relevance of information
+   - Depth of analysis
+
+2. Organization (30 marks)
+   - Clear structure
+   - Logical flow of ideas
+
+3. Writing Quality (20 marks)
+   - Grammar and spelling
+   - Clarity of expression
+
+4. References (10 marks)
+   - Proper citations
+   - Quality of sources"></textarea>
+            </div>
+
+            <div id="rubric-pdf-input" class="form-group hidden">
+                <label for="rubric_pdf" class="form-label">Rubric PDF</label>
+                <div class="file-upload" id="rubric-drop">
+                    <input type="file" name="rubric_pdf" id="rubric_pdf" accept=".pdf">
+                    <div class="file-upload-content">
+                        <span class="file-upload-icon">+</span>
+                        <span class="file-upload-text">Drop rubric PDF here or click to browse</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h2>Step 3: Grading Options</h2>
+        </div>
+        <div class="card-body">
+            <div class="options-grid">
+                <div class="form-group">
+                    <label for="ai_provider" class="form-label">AI Provider</label>
+                    <select name="ai_provider" id="ai_provider" class="form-select">
+                        {% for provider in providers %}
+                        <option value="{{ provider.id }}" {% if provider.id == current_provider %}selected{% endif %}
+                                {% if not provider.configured %}disabled{% endif %}>
+                            {{ provider.name }}{% if not provider.configured %} (not configured){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="marking_mode" class="form-label">Marking Mode</label>
+                    <select name="marking_mode" id="marking_mode" class="form-select">
+                        <option value="auto" {% if marking_mode == 'auto' %}selected{% endif %}>Auto-calculate marks</option>
+                        <option value="suggestions" {% if marking_mode == 'suggestions' %}selected{% endif %}>Suggestions only</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="feedback_style" class="form-label">Feedback Style</label>
+                    <select name="feedback_style" id="feedback_style" class="form-select">
+                        <option value="detailed" {% if feedback_style == 'detailed' %}selected{% endif %}>Detailed feedback</option>
+                        <option value="brief" {% if feedback_style == 'brief' %}selected{% endif %}>Brief feedback</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-actions mt-4">
+        <button type="submit" class="btn btn-primary btn-large">
+            Start Grading
+        </button>
+    </div>
+</form>
+
+<script>
+function toggleUploadType() {
+    const uploadType = document.querySelector('input[name="upload_type"]:checked').value;
+    document.getElementById('individual-upload').classList.toggle('hidden', uploadType !== 'individual');
+    document.getElementById('combined-upload').classList.toggle('hidden', uploadType !== 'combined');
+}
+
+function toggleSplitMethod() {
+    const method = document.querySelector('input[name="split_method"]:checked').value;
+    document.getElementById('pages-input').classList.toggle('hidden', method !== 'pages');
+    document.getElementById('marker-input').classList.toggle('hidden', method !== 'marker');
+}
+
+function toggleRubricType() {
+    const rubricType = document.querySelector('input[name="rubric_type"]:checked').value;
+    document.getElementById('rubric-text-input').classList.toggle('hidden', rubricType !== 'text');
+    document.getElementById('rubric-pdf-input').classList.toggle('hidden', rubricType !== 'pdf');
+}
+
+// File list display
+document.getElementById('assignments').addEventListener('change', function(e) {
+    const fileList = document.getElementById('file-list');
+    fileList.innerHTML = '';
+
+    if (this.files.length > 0) {
+        const list = document.createElement('ul');
+        for (let file of this.files) {
+            const li = document.createElement('li');
+            li.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+            list.appendChild(li);
+        }
+        fileList.appendChild(list);
+    }
+});
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+</script>
+{% endblock %}
